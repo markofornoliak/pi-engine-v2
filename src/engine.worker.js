@@ -12,7 +12,16 @@ async function loadEngine(threaded) {
       return new URL(path, base).href;
     }
   });
+  if (typeof Module.getHeapU8 !== 'function') {
+    throw new Error('WASM memory interface is unavailable.');
+  }
   return Module;
+}
+
+function heapU8() {
+  const heap = Module?.getHeapU8?.();
+  if (!heap) throw new Error('WASM memory view is unavailable.');
+  return heap;
 }
 
 async function opfsAvailable() {
@@ -32,7 +41,8 @@ async function saveFromWasm(ptr, length, digits) {
     const chunkSize = 1024 * 1024;
     for (let offset = 0; offset < length; offset += chunkSize) {
       const end = Math.min(length, offset + chunkSize);
-      const chunk = Module.HEAPU8.slice(ptr + offset, ptr + end);
+      const heap = heapU8();
+      const chunk = heap.slice(ptr + offset, ptr + end);
       access.write(chunk, { at: offset });
       postMessage({
         type: 'phase',
@@ -50,10 +60,14 @@ async function saveFromWasm(ptr, length, digits) {
 }
 
 function previewFromWasm(ptr, length) {
-  const size = Math.min(4096, length);
-  const first = decoder.decode(Module.HEAPU8.subarray(ptr, ptr + size));
-  const lastStart = Math.max(ptr, ptr + length - size);
-  const last = decoder.decode(Module.HEAPU8.subarray(lastStart, ptr + length));
+  const heap = heapU8();
+  if (length <= 8192) {
+    const full = decoder.decode(heap.subarray(ptr, ptr + length));
+    return { first: full, last: '' };
+  }
+  const size = 4096;
+  const first = decoder.decode(heap.subarray(ptr, ptr + size));
+  const last = decoder.decode(heap.subarray(ptr + length - size, ptr + length));
   return { first, last };
 }
 
@@ -92,7 +106,8 @@ async function compute({ digits, threads, threaded, mode }) {
 
   let text = null;
   if (!fileName && length <= 5_000_002) {
-    text = decoder.decode(Module.HEAPU8.subarray(ptr, ptr + length));
+    const heap = heapU8();
+    text = decoder.decode(heap.subarray(ptr, ptr + length));
   }
 
   Module._pi_free(ptr);
