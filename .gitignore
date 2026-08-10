@@ -1,0 +1,3 @@
+.build/
+native/pi_engine_native
+.DS_Store
