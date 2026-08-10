@@ -1,0 +1,9 @@
+{
+  "name": "pi-engine-v2",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "serve": "npx http-server . -p 8080 -c-1 --cors",
+    "test:native": "g++ -O3 -std=c++20 native/pi_engine.cpp -lgmp -pthread -o native/pi_engine_native && native/pi_engine_native 1000 4 | head -c 40"
+  }
+}
