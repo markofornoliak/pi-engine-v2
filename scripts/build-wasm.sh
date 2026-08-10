@@ -13,7 +13,8 @@ mkdir -p "$BUILD" "$OUT"
 if [[ ! -f "$GMP_PREFIX/lib/libgmp.a" ]]; then
   cd "$BUILD"
   if [[ ! -f "gmp-$GMP_VERSION.tar.xz" ]]; then
-    curl -fsSLO "https://gmplib.org/download/gmp/gmp-$GMP_VERSION.tar.xz"
+    curl --retry 4 --retry-delay 2 --fail --location --output "gmp-$GMP_VERSION.tar.xz" \
+      "https://ftp.gnu.org/gnu/gmp/gmp-$GMP_VERSION.tar.xz"
   fi
   rm -rf "$GMP_SRC"
   tar -xf "gmp-$GMP_VERSION.tar.xz"
