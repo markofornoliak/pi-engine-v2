@@ -1,15 +1,20 @@
+const BUILD = 'heapfix-20260810';
 const decoder = new TextDecoder();
 let Module = null;
 let resultFileName = null;
 let lastMeta = null;
 
 async function loadEngine(threaded) {
-  const file = threaded ? '../wasm/pi_engine_mt.js' : '../wasm/pi_engine_st.js';
+  const file = threaded
+    ? `../wasm/pi_engine_mt.js?v=${BUILD}`
+    : `../wasm/pi_engine_st.js?v=${BUILD}`;
   const createModule = (await import(file)).default;
   const base = new URL('../wasm/', import.meta.url);
   Module = await createModule({
     locateFile(path) {
-      return new URL(path, base).href;
+      const url = new URL(path, base);
+      url.searchParams.set('v', BUILD);
+      return url.href;
     }
   });
   return Module;
