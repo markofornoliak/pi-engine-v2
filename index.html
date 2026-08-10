@@ -6,8 +6,24 @@
   <meta name="theme-color" content="#0b0b0c">
   <title>π Engine</title>
   <link rel="stylesheet" href="styles.css?v=pi-bg-20260810">
+  <style>
+    #pi-3d-bg{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;z-index:0;pointer-events:none;opacity:.5;filter:saturate(.8)}
+    body::before{opacity:.16}
+    main{position:relative;z-index:1}
+    @media (max-width:640px){#pi-3d-bg{opacity:.44}}
+    @media (prefers-reduced-motion:reduce){#pi-3d-bg{opacity:.38}}
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
+  <canvas id="pi-3d-bg" aria-hidden="true"></canvas>
   <main>
     <header>
       <div class="pi">π</div>
@@ -55,6 +71,7 @@
       <pre id="output">3.14159265358979323846…</pre>
     </section>
   </main>
+  <script type="module" src="./src/background3d.js?v=20260810-1"></script>
   <script type="module" src="./src/app.js?v=heapfix-20260810"></script>
 </body>
 </html>
