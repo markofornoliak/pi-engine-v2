@@ -1,3 +1,4 @@
+const BUILD = 'heapfix-20260810';
 const $ = (id) => document.getElementById(id);
 const digits = $('digits');
 const mode = $('mode');
@@ -88,7 +89,7 @@ async function run() {
   const config = selection(profile, mode.value);
 
   killWorker();
-  worker = new Worker('./src/engine.worker.js', { type: 'module' });
+  worker = new Worker(`./src/engine.worker.js?v=${BUILD}`, { type: 'module' });
   setBusy(true);
   save.disabled = true;
   copy.disabled = true;
