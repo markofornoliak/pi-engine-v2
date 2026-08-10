@@ -12,16 +12,18 @@ async function loadEngine(threaded) {
       return new URL(path, base).href;
     }
   });
-  if (typeof Module.getHeapU8 !== 'function') {
-    throw new Error('WASM memory interface is unavailable.');
-  }
   return Module;
 }
 
 function heapU8() {
-  const heap = Module?.getHeapU8?.();
-  if (!heap) throw new Error('WASM memory view is unavailable.');
-  return heap;
+  return Module?.getHeapU8?.() || null;
+}
+
+function readText(ptr, length) {
+  const heap = heapU8();
+  if (heap) return decoder.decode(heap.subarray(ptr, ptr + length));
+  if (typeof Module?.UTF8ToString === 'function') return Module.UTF8ToString(ptr, length);
+  throw new Error('WASM memory interface is unavailable.');
 }
 
 async function opfsAvailable() {
@@ -29,19 +31,22 @@ async function opfsAvailable() {
 }
 
 async function saveFromWasm(ptr, length, digits) {
-  if (!(await opfsAvailable())) return null;
+  if (!(await opfsAvailable()) || !heapU8()) return null;
 
-  const root = await navigator.storage.getDirectory();
-  const name = `pi-${digits}-digits.txt`;
-  const handle = await root.getFileHandle(name, { create: true });
-  const access = await handle.createSyncAccessHandle();
-
+  let access = null;
   try {
+    const root = await navigator.storage.getDirectory();
+    const name = `pi-${digits}-digits.txt`;
+    const handle = await root.getFileHandle(name, { create: true });
+    if (typeof handle.createSyncAccessHandle !== 'function') return null;
+    access = await handle.createSyncAccessHandle();
     access.truncate(0);
+
     const chunkSize = 1024 * 1024;
     for (let offset = 0; offset < length; offset += chunkSize) {
       const end = Math.min(length, offset + chunkSize);
       const heap = heapU8();
+      if (!heap) return null;
       const chunk = heap.slice(ptr + offset, ptr + end);
       access.write(chunk, { at: offset });
       postMessage({
@@ -51,24 +56,37 @@ async function saveFromWasm(ptr, length, digits) {
       });
     }
     access.flush();
+    resultFileName = name;
+    return name;
+  } catch {
+    return null;
   } finally {
-    access.close();
+    try { access?.close(); } catch {}
   }
-
-  resultFileName = name;
-  return name;
 }
 
 function previewFromWasm(ptr, length) {
-  const heap = heapU8();
   if (length <= 8192) {
-    const full = decoder.decode(heap.subarray(ptr, ptr + length));
+    const full = readText(ptr, length);
     return { first: full, last: '' };
   }
+
   const size = 4096;
-  const first = decoder.decode(heap.subarray(ptr, ptr + size));
-  const last = decoder.decode(heap.subarray(ptr + length - size, ptr + length));
-  return { first, last };
+  const heap = heapU8();
+  if (heap) {
+    const first = decoder.decode(heap.subarray(ptr, ptr + size));
+    const last = decoder.decode(heap.subarray(ptr + length - size, ptr + length));
+    return { first, last };
+  }
+
+  if (typeof Module?.UTF8ToString === 'function') {
+    return {
+      first: Module.UTF8ToString(ptr, size),
+      last: Module.UTF8ToString(ptr + length - size, size)
+    };
+  }
+
+  throw new Error('WASM memory interface is unavailable.');
 }
 
 async function compute({ digits, threads, threaded, mode }) {
@@ -105,9 +123,8 @@ async function compute({ digits, threads, threaded, mode }) {
   const fileName = await saveFromWasm(ptr, length, digits);
 
   let text = null;
-  if (!fileName && length <= 5_000_002) {
-    const heap = heapU8();
-    text = decoder.decode(heap.subarray(ptr, ptr + length));
+  if (!fileName && length <= 20_000_002) {
+    text = readText(ptr, length);
   }
 
   Module._pi_free(ptr);
