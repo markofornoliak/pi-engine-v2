@@ -1,4 +1,4 @@
-name: build-wasm
+name: build-and-deploy-pages
 
 on:
   push:
@@ -6,13 +6,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Native verification
         run: |
@@ -32,11 +39,29 @@ jobs:
           source /tmp/emsdk/emsdk_env.sh
           bash ./scripts/build-wasm.sh
 
-      - name: Commit generated WASM
+      - name: Prepare site
         run: |
-          if git diff --quiet -- wasm; then exit 0; fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add wasm
-          git commit -m "Build WASM engines"
-          git push
+          rm -rf _site
+          mkdir -p _site
+          cp index.html styles.css _site/
+          cp -R src wasm _site/
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
