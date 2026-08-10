@@ -47,6 +47,7 @@ COMMON=(
   -sFILESYSTEM=0
   -sASSERTIONS=0
   -sEXPORTED_FUNCTIONS='["_pi_compute","_pi_free","_pi_terms_done","_pi_terms_total","_pi_max_threads"]'
+  -sEXPORTED_RUNTIME_METHODS='["UTF8ToString"]'
 )
 
 em++ "${COMMON[@]}" -o "$OUT/pi_engine_st.js"
