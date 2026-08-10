@@ -1,0 +1,42 @@
+name: build-wasm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Native verification
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgmp-dev
+          g++ -O3 -std=c++20 native/pi_engine.cpp -lgmp -pthread -o /tmp/pi-test
+          test "$(/tmp/pi-test 100 4)" = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170680"
+
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git /tmp/emsdk
+          /tmp/emsdk/emsdk install latest
+          /tmp/emsdk/emsdk activate latest
+
+      - name: Build WebAssembly engines
+        run: |
+          source /tmp/emsdk/emsdk_env.sh
+          bash ./scripts/build-wasm.sh
+
+      - name: Commit generated WASM
+        run: |
+          if git diff --quiet -- wasm; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add wasm
+          git commit -m "Build WASM engines"
+          git push
